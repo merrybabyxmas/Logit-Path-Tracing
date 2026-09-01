@@ -7,8 +7,8 @@ It provides:
 
 - exact next-token argmax partitions for affine logit controls on an interval
   or a two-dimensional simplex;
-- epsilon certification with the paper definition `min_gap > epsilon`, where
-  epsilon is a pairwise-gap error bound;
+- epsilon-robust subregion clipping under the paper's pairwise-gap error
+  bound;
 - a smoke test that compares the recovered cells with dense-grid argmax
   decoding on toy affine logits;
 - a paper-number reproduction script for the released experiment artifacts.
@@ -31,3 +31,10 @@ python scripts/reproduce_paper_numbers.py \
   --out-dir outputs/recomputed_tables
 ```
 
+To regenerate the deterministic property-existence table:
+
+```bash
+python scripts/derive_property_existence.py \
+  --artifact-root /path/to/extracted_artifacts \
+  --out-dir outputs/recomputed_tables
+```

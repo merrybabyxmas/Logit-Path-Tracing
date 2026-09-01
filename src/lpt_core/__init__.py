@@ -1,5 +1,5 @@
 from .calibration import pairwise_gap_epsilon
-from .partition import Cell, certify_cells, partition_interval, partition_simplex
+from .partition import Cell, certify_cells, partition_interval, partition_simplex, robust_subregions
 
 __all__ = [
     "Cell",
@@ -7,5 +7,5 @@ __all__ = [
     "pairwise_gap_epsilon",
     "partition_interval",
     "partition_simplex",
+    "robust_subregions",
 ]
-

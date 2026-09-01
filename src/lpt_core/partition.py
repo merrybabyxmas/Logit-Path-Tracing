@@ -138,7 +138,78 @@ def partition_simplex(a: np.ndarray, b: np.ndarray, tol: float = 1e-10) -> list[
 
 
 def certify_cells(cells: list[Cell], epsilon: float) -> list[Cell]:
-    """Return cells certified by the paper rule min_gap > epsilon."""
+    """Return whole cells whose minimum margin exceeds epsilon.
+
+    This is a conservative summary helper. The paper's robust construction is
+    implemented by ``robust_subregions``, which clips each cell by the
+    epsilon-margin halfspaces.
+    """
 
     return [cell for cell in cells if cell.min_gap > float(epsilon)]
 
+
+def _robust_interval_cell(a: np.ndarray, b: np.ndarray, cell: Cell, epsilon: float, tol: float) -> Cell | None:
+    token = int(cell.token)
+    lo = float(cell.vertices[0][0])
+    hi = float(cell.vertices[-1][0])
+    slopes = np.asarray(b, dtype=np.float64).reshape(-1)
+    for other in range(len(a)):
+        if other == token:
+            continue
+        offset = float(a[token] - a[other] - epsilon)
+        slope = float(slopes[token] - slopes[other])
+        if abs(slope) <= tol:
+            if offset <= tol:
+                return None
+            continue
+        root = -offset / slope
+        if slope > 0:
+            lo = max(lo, root)
+        else:
+            hi = min(hi, root)
+        if hi <= lo + tol:
+            return None
+    vertices = np.array([[lo], [hi]], dtype=np.float64)
+    return _as_cell(token, vertices, _min_gap(a, slopes[:, None], token, vertices))
+
+
+def _robust_simplex_cell(a: np.ndarray, b: np.ndarray, cell: Cell, epsilon: float, tol: float) -> Cell | None:
+    token = int(cell.token)
+    poly = np.array(cell.vertices, dtype=np.float64)
+    coeffs = np.asarray(b, dtype=np.float64)
+    for other in range(len(a)):
+        if other == token:
+            continue
+        normal = coeffs[token] - coeffs[other]
+        offset = float(a[token] - a[other] - epsilon)
+        poly = _clip_halfplane(poly, normal, offset, tol)
+        if _polygon_area(poly) <= tol:
+            return None
+    return _as_cell(token, poly, _min_gap(a, coeffs, token, poly))
+
+
+def robust_subregions(cells: list[Cell], a: np.ndarray, b: np.ndarray, epsilon: float, tol: float = 1e-10) -> list[Cell]:
+    """Clip greedy cells to epsilon-robust subregions.
+
+    A returned subregion satisfies
+    l_token(lambda) - l_other(lambda) > epsilon for every competitor at all
+    vertices, which certifies the affine cell interior under a pairwise-gap
+    error bound.
+    """
+
+    if not cells:
+        return []
+    a = np.asarray(a, dtype=np.float64)
+    b = np.asarray(b, dtype=np.float64)
+    epsilon = float(epsilon)
+    out: list[Cell] = []
+    for cell in cells:
+        if cell.dimension == 1:
+            robust = _robust_interval_cell(a, b, cell, epsilon, tol)
+        elif cell.dimension == 2:
+            robust = _robust_simplex_cell(a, b, cell, epsilon, tol)
+        else:
+            raise ValueError("robust_subregions supports one- and two-dimensional cells")
+        if robust is not None:
+            out.append(robust)
+    return out

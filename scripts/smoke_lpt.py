@@ -3,10 +3,13 @@ from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
+import sys
 
 import numpy as np
 
-from lpt_core import certify_cells, pairwise_gap_epsilon, partition_interval, partition_simplex
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+
+from lpt_core import certify_cells, pairwise_gap_epsilon, partition_interval, partition_simplex, robust_subregions
 
 
 def contains_interval(cell, point: float, tol: float = 1e-9) -> bool:
@@ -42,6 +45,7 @@ def smoke_interval() -> dict:
         "dimension": 1,
         "num_cells": len(cells),
         "num_certified_at_eps_1e-3": len(certify_cells(cells, 1e-3)),
+        "num_robust_subregions_at_eps_1e-3": len(robust_subregions(cells, a, b, 1e-3)),
         "pairwise_gap_epsilon_example": eps,
         "grid_points_checked": checked,
         "grid_mismatches": mismatches,
@@ -77,6 +81,7 @@ def smoke_simplex() -> dict:
         "dimension": 2,
         "num_cells": len(cells),
         "num_certified_at_eps_1e-3": len(certify_cells(cells, 1e-3)),
+        "num_robust_subregions_at_eps_1e-3": len(robust_subregions(cells, a, b, 1e-3)),
         "grid_points_checked": checked,
         "grid_mismatches": mismatches,
     }

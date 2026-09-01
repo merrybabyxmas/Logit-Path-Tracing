@@ -48,6 +48,13 @@ def exact_cache_path(root: Path, model_key: str, d: int) -> Path:
     )
 
 
+def load_completion_rows(root: Path) -> list[dict] | None:
+    path = root / "data" / "processed" / "node_limit_completion.csv"
+    if not path.exists():
+        return None
+    return pd.read_csv(path).to_dict("records")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--artifact-root", type=Path, required=True)
@@ -61,6 +68,8 @@ def main() -> None:
     summary_rows: list[dict] = []
     prompt_rows: list[dict] = []
     completion_rows: list[dict] = []
+
+    existing_completion_rows = load_completion_rows(root)
 
     for d in [1, 2]:
         for model_key in MODEL_ORDER:
@@ -131,24 +140,28 @@ def main() -> None:
                             }
                         )
 
-            exact_records = load_jsonl(exact_cache_path(root, model_key, d))[:200]
-            completion_rows.append(
-                {
-                    "model_key": model_key,
-                    "model": MODEL_NAMES[model_key],
-                    "d": d,
-                    "prompts": int(len(exact_records)),
-                    "complete_prompts": int(sum(bool(row.get("certified_complete")) for row in exact_records)),
-                    "node_limit_cells": int(
-                        sum(
-                            1
-                            for row in exact_records
-                            for response in row.get("responses", [])
-                            if response.get("stop_reason") == "node_limit"
-                        )
-                    ),
-                }
-            )
+            if existing_completion_rows is None:
+                exact_records = load_jsonl(exact_cache_path(root, model_key, d))[:200]
+                completion_rows.append(
+                    {
+                        "model_key": model_key,
+                        "model": MODEL_NAMES[model_key],
+                        "d": d,
+                        "prompts": int(len(exact_records)),
+                        "complete_prompts": int(sum(bool(row.get("certified_complete")) for row in exact_records)),
+                        "node_limit_cells": int(
+                            sum(
+                                1
+                                for row in exact_records
+                                for response in row.get("responses", [])
+                                if response.get("stop_reason") == "node_limit"
+                            )
+                        ),
+                    }
+                )
+
+    if existing_completion_rows is not None:
+        completion_rows = existing_completion_rows
 
     pd.DataFrame(summary_rows).sort_values(["panel", "d", "model_key", "method"]).to_csv(
         out_dir / "table08_property_existence.csv", index=False
